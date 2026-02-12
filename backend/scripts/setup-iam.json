@@ -1,0 +1,63 @@
+{
+  "Comment": "IAM Policy for ays-lambda-execution-role. Replace ACCOUNT_ID with your AWS account ID.",
+  "trust-policy": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Principal": { "Service": "lambda.amazonaws.com" },
+        "Action": "sts:AssumeRole"
+      }
+    ]
+  },
+  "lambda-permissions": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "DynamoDB",
+        "Effect": "Allow",
+        "Action": [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Query",
+          "dynamodb:Scan",
+          "dynamodb:BatchGetItem"
+        ],
+        "Resource": [
+          "arn:aws:dynamodb:ap-south-1:ACCOUNT_ID:table/AreYouSafe-*",
+          "arn:aws:dynamodb:ap-south-1:ACCOUNT_ID:table/AreYouSafe-*/index/*"
+        ]
+      },
+      {
+        "Sid": "SNS",
+        "Effect": "Allow",
+        "Action": ["sns:Publish"],
+        "Resource": "*"
+      },
+      {
+        "Sid": "SES",
+        "Effect": "Allow",
+        "Action": ["ses:SendEmail", "ses:SendRawEmail"],
+        "Resource": "*"
+      },
+      {
+        "Sid": "LambdaInvoke",
+        "Effect": "Allow",
+        "Action": ["lambda:InvokeFunction"],
+        "Resource": "arn:aws:lambda:ap-south-1:ACCOUNT_ID:function:ays-*"
+      },
+      {
+        "Sid": "CloudWatchLogs",
+        "Effect": "Allow",
+        "Action": [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Resource": "arn:aws:logs:ap-south-1:ACCOUNT_ID:*"
+      }
+    ]
+  }
+}

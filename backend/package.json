@@ -1,0 +1,20 @@
+{
+  "name": "areyousafe-backend",
+  "version": "1.0.0",
+  "description": "Are You Safe? - AWS Lambda backend",
+  "main": "src/handlers/index.js",
+  "scripts": {
+    "deploy": "node scripts/deploy.js",
+    "setup-tables": "node scripts/setup-tables.js",
+    "test": "node scripts/test-endpoints.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.500.0",
+    "@aws-sdk/lib-dynamodb": "^3.500.0",
+    "@aws-sdk/client-sns": "^3.500.0",
+    "@aws-sdk/client-ses": "^3.500.0",
+    "@aws-sdk/client-lambda": "^3.500.0",
+    "google-auth-library": "^9.0.0",
+    "jsonwebtoken": "^9.0.0"
+  }
+}
