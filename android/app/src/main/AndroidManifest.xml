@@ -1,6 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- INTERNET: Required for API calls to backend -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- POST_NOTIFICATIONS: Required for daily check-in reminders (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- RECEIVE_BOOT_COMPLETED: Reschedule notifications after device reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
       android:name=".MainApplication"
@@ -9,8 +14,10 @@
       android:roundIcon="@mipmap/ic_launcher_round"
       android:allowBackup="false"
       android:theme="@style/AppTheme"
-      android:usesCleartextTraffic="${usesCleartextTraffic}"
-      android:supportsRtl="true">
+      android:usesCleartextTraffic="false"
+      android:supportsRtl="true"
+      android:networkSecurityConfig="@xml/network_security_config">
+
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
@@ -23,5 +30,29 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+      <!-- Boot receiver for restarting notifications after reboot -->
+      <receiver
+        android:name="io.invertase.notifee.BootReceiver"
+        android:exported="false">
+        <intent-filter>
+          <action android:name="android.intent.action.BOOT_COMPLETED" />
+          <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+          <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+        </intent-filter>
+      </receiver>
+
+      <!-- Check-in Widget -->
+      <receiver
+        android:name=".CheckInWidget"
+        android:exported="true"
+        android:label="@string/widget_name">
+        <intent-filter>
+          <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+        </intent-filter>
+        <meta-data
+          android:name="android.appwidget.provider"
+          android:resource="@xml/widget_checkin_info" />
+      </receiver>
     </application>
 </manifest>
