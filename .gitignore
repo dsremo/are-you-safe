@@ -85,3 +85,8 @@ GoogleService-Info.plist
 # Deploy artifacts
 *.zip
 backend/deploy/
+
+# Editor + local notes
+*.pdf
+.vscode/
+.claude/

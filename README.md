@@ -1,97 +1,117 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Are You Safe?
 
-# Getting Started
+A daily safety check-in app for the Indian audience.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+The user opens the app and presses "I am safe" once a day. If they stop checking in for a configurable number of days (default: 2), the backend automatically alerts their pre-configured emergency contacts via SMS and email so someone knows to follow up.
 
-## Step 1: Start Metro
+Useful for elderly people living alone, anyone with a medical condition, solo travellers, and anyone who wants a simple dead-man's-switch style safety net.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## Status
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+This is an archived snapshot of the project. The AWS backend has been torn down, so the app will not run end-to-end against a live server without redeploying the Lambda functions yourself. The mobile and backend source remain here as a reference implementation.
 
-```sh
-# Using npm
-npm start
+## How it works
 
-# OR using Yarn
-yarn start
+```
++----------------+         +-----------------+         +----------------+
+|  React Native  |  HTTPS  |  API Gateway    |         |  Lambda        |
+|  Mobile App    | <-----> |  (REST API)     | <-----> |  Functions     |
++----------------+         +-----------------+         +-------+--------+
+        |                                                      |
+        v                                              +-------+--------+
++----------------+                                     |  DynamoDB      |
+| Google Sign-In |                                     |  (5 tables)    |
+| (OAuth 2.0)    |                                     +-------+--------+
++----------------+                                             |
+                                                       +-------+--------+
+                                                       |  SNS (SMS)     |
+                                                       |  SES (Email)   |
+                                                       |  EventBridge   |
+                                                       +----------------+
 ```
 
-## Step 2: Build and run your app
+End-to-end flow:
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+1. User signs in with Google.
+2. App sends the Google ID token to `POST /auth/google`. Backend verifies it, creates or updates the user in DynamoDB, returns a JWT access token + refresh token.
+3. App stores the JWT in AsyncStorage. All subsequent calls send `Authorization: Bearer <token>`.
+4. User presses "I am safe" -> `POST /checkin` -> backend records the date in DynamoDB.
+5. An EventBridge cron triggers the `ays-monitor` Lambda every hour. It scans all users; for anyone past their configured threshold, it invokes `ays-sendAlert` once per emergency contact.
+6. `ays-sendAlert` sends SMS via SNS and email via SES.
 
-### Android
+## Tech stack
 
-```sh
-# Using npm
-npm run android
+**Mobile (React Native 0.83 / TypeScript)**
+- React 19, React Navigation v7 (native stack + bottom tabs)
+- Google Sign-In via `@react-native-google-signin/google-signin`
+- Local notifications via `@notifee/react-native` with an "I am safe" action button on the daily reminder so the user can check in without opening the app
+- `axios` for API calls, `@react-native-async-storage/async-storage` for token + offline state
+- `react-native-config` for environment-specific API endpoints
+- An offline queue that retries check-ins when connectivity returns
 
-# OR using Yarn
-yarn android
+**Backend (AWS serverless, Node.js 20.x)**
+- API Gateway (REST) -> Lambda for every endpoint
+- DynamoDB for users, sessions, contacts, check-ins, alert history
+- SNS for SMS, SES for email
+- EventBridge for the hourly monitor
+- `google-auth-library` server-side token verification, `jsonwebtoken` for app sessions
+
+**Android native (Kotlin)**
+- A home-screen widget with a single "I am safe" button so the user can check in directly from their launcher
+
+## Repository layout
+
+```
+.
++-- src/                  React Native source (screens, services, navigation, context)
++-- android/              Android native project + Kotlin widget
++-- ios/                  iOS Xcode project
++-- backend/              AWS Lambda handlers, deploy scripts
++-- legal-pages/          Static privacy + terms pages (Firebase Hosting)
++-- App.tsx               App root
++-- index.js              RN entry + background notification handler
 ```
 
-### iOS
+## Running the mobile app locally
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+Prerequisites: Node 20+, JDK 17, Android Studio (for the Android build), Xcode (for the iOS build).
 
 ```sh
-bundle install
+npm install
 ```
 
-Then, and every time you update your native dependencies, run:
+Set up a `.env` (and `.env.development` / `.env.staging` / `.env.production` as you need them):
 
-```sh
-bundle exec pod install
+```
+API_BASE_URL=...
+GOOGLE_WEB_CLIENT_ID=...
+GOOGLE_ANDROID_CLIENT_ID=...
+ENVIRONMENT=development
+AWS_REGION=ap-south-1
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+Then:
 
 ```sh
-# Using npm
+npm start                              # Metro
+npm run android                        # Android
+# iOS: bundle install && bundle exec pod install (in ios/), then:
 npm run ios
-
-# OR using Yarn
-yarn ios
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+Without the AWS backend running, sign-in and check-in API calls will fail. The local UI flow still works for inspection.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Deploying the backend
 
-## Step 3: Modify your app
+`backend/` contains the Lambda handlers and a deploy script that packages each function and pushes it to AWS. You will need:
 
-Now that you have successfully run the app, let's make changes!
+- An AWS account with Lambda, API Gateway, DynamoDB, SNS, SES, and EventBridge access
+- A Google OAuth client (Web + Android)
+- An SES sender identity verified in your region
+- DynamoDB tables: `ays-users`, `ays-sessions`, `ays-contacts`, `ays-checkins`, `ays-alerts`
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+The deploy scripts assume `ap-south-1` (Mumbai); the region is configurable via env.
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+## License
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+MIT.
