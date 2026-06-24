@@ -17,22 +17,16 @@ This is an archived snapshot of the project. The AWS backend has been torn down,
 
 ## How it works
 
-```
-+----------------+         +-----------------+         +----------------+
-|  React Native  |  HTTPS  |  API Gateway    |         |  Lambda        |
-|  Mobile App    | <-----> |  (REST API)     | <-----> |  Functions     |
-+----------------+         +-----------------+         +-------+--------+
-        |                                                      |
-        v                                              +-------+--------+
-+----------------+                                     |  DynamoDB      |
-| Google Sign-In |                                     |  (5 tables)    |
-| (OAuth 2.0)    |                                     +-------+--------+
-+----------------+                                             |
-                                                       +-------+--------+
-                                                       |  SNS (SMS)     |
-                                                       |  SES (Email)   |
-                                                       |  EventBridge   |
-                                                       +----------------+
+```mermaid
+flowchart LR
+  APP["React Native app<br/>(Google Sign-In)"] -- HTTPS --> GW[API Gateway]
+  GW --> L[Lambda functions]
+  L --> DB[("DynamoDB<br/>5 tables")]
+  EB["EventBridge<br/>daily scheduled check"] --> L
+  L -- "missed check-ins" --> SNS["SNS · SMS"]
+  L -- "missed check-ins" --> SES["SES · Email"]
+  SNS --> C[Emergency contacts]
+  SES --> C
 ```
 
 End-to-end flow:
